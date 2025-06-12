@@ -4,6 +4,8 @@ import { Memory } from '@mastra/memory';
 import { LibSQLStore } from '@mastra/libsql';
 import { weatherTool } from '../tools/weather-tool';
 import { dayOfWeekTool } from '../tools/day-of-week-tool';
+import { webpageTitleTool } from '../tools/webpage-title-tool';
+import { calculatorTool } from '../tools/calculator-tool';
 
 export const weatherAgent = new Agent({
   name: 'Weather Agent',
@@ -16,7 +18,7 @@ export const weatherAgent = new Agent({
       3. \`weatherTool\`から得られた結果を、最終的に日本語でユーザーに報告してください。
 `,
   model: google('gemini-1.5-pro-latest'),
-  tools: { weatherTool, dayOfWeekTool },
+  tools: { weatherTool, dayOfWeekTool, webpageTitleTool, calculatorTool },
   memory: new Memory({
     storage: new LibSQLStore({
       url: 'file:../mastra.db', // path is relative to the .mastra/output directory

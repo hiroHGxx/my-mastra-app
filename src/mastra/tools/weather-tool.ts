@@ -40,13 +40,63 @@ export const weatherTool = createTool({
   },
 });
 
-const getWeather = async (location: string) => {
-  const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`;
-  const geocodingResponse = await fetch(geocodingUrl);
-  const geocodingData = (await geocodingResponse.json()) as GeocodingResponse;
+const translateJapaneseLocation = (location: string): string => {
+  const locationMap: Record<string, string> = {
+    '東京': 'Tokyo',
+    '大阪': 'Osaka', 
+    '名古屋': 'Nagoya',
+    '横浜': 'Yokohama',
+    '京都': 'Kyoto',
+    '神戸': 'Kobe',
+    '札幌': 'Sapporo',
+    '福岡': 'Fukuoka',
+    '広島': 'Hiroshima',
+    '仙台': 'Sendai',
+    '千葉': 'Chiba',
+    '北九州': 'Kitakyushu',
+    '浜松': 'Hamamatsu',
+    '新潟': 'Niigata',
+    '熊本': 'Kumamoto',
+    '相模原': 'Sagamihara',
+    '岡山': 'Okayama',
+    '金沢': 'Kanazawa',
+    '長崎': 'Nagasaki',
+    '奈良': 'Nara',
+    '岐阜': 'Gifu',
+  };
+  
+  return locationMap[location] || location;
+};
 
-  if (!geocodingData.results?.[0]) {
-    throw new Error(`Location '${location}' not found`);
+const getWeather = async (location: string) => {
+  // Try multiple search approaches for better success rate
+  const translatedLocation = translateJapaneseLocation(location);
+  const searchTerms = [
+    translatedLocation, // Try translated name first
+    location, // Try original name
+    `${location}, Japan`, // Try with country suffix
+    `${translatedLocation}, Japan`, // Try translated with country
+    `${location}市`, // Try with city suffix (市)
+    `${location}県`, // Try with prefecture suffix (県)
+    `${translatedLocation}-shi` // Try with -shi suffix for cities
+  ];
+  
+  let geocodingData: GeocodingResponse | null = null;
+  
+  for (const searchTerm of searchTerms) {
+    
+    const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchTerm)}&count=1`;
+    const geocodingResponse = await fetch(geocodingUrl);
+    const data = (await geocodingResponse.json()) as GeocodingResponse;
+    
+    if (data.results?.[0]) {
+      geocodingData = data;
+      break;
+    }
+  }
+
+  if (!geocodingData?.results?.[0]) {
+    throw new Error(`Location '${location}' not found after trying: ${searchTerms.join(', ')}`);
   }
 
   const { latitude, longitude, name } = geocodingData.results[0];

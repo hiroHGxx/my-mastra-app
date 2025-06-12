@@ -155,26 +155,25 @@ const calculateSimpleExpression = (expression: string): number => {
   return finalResult;
 };
 
-// 文字列をトークンに分割
+// 文字列をトークンに分割（最適化版）
 const tokenize = (expression: string): string[] => {
   const tokens: string[] = [];
+  const operators = new Set(['+', '-', '*', '/']);
   let currentToken = '';
   
-  for (let i = 0; i < expression.length; i++) {
-    const char = expression[i];
-    
+  for (const char of expression) {
     if (char === ' ') {
       if (currentToken) {
         tokens.push(currentToken);
         currentToken = '';
       }
-    } else if (['+', '-', '*', '/'].includes(char)) {
+    } else if (operators.has(char)) {
       if (currentToken) {
         tokens.push(currentToken);
         currentToken = '';
       }
       tokens.push(char);
-    } else if (char.match(/[0-9.]/)) {
+    } else if (/[0-9.]/.test(char)) {
       currentToken += char;
     } else {
       throw new Error(`無効な文字です: '${char}'`);

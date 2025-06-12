@@ -1,5 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { getWeatherCondition, safeFetch } from '../utils/weather-utils';
 
 interface GeocodingResponse {
   results: {
@@ -83,15 +84,42 @@ const getWeather = async (location: string) => {
   
   let geocodingData: GeocodingResponse | null = null;
   
-  for (const searchTerm of searchTerms) {
-    
+  // 最初の3つの検索語を並列で試行し、その後は順次実行
+  const primaryTerms = searchTerms.slice(0, 3);
+  const fallbackTerms = searchTerms.slice(3);
+  
+  // 並列検索
+  const primaryPromises = primaryTerms.map(async (searchTerm) => {
     const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchTerm)}&count=1`;
-    const geocodingResponse = await fetch(geocodingUrl);
+    const geocodingResponse = await safeFetch(geocodingUrl);
     const data = (await geocodingResponse.json()) as GeocodingResponse;
-    
-    if (data.results?.[0]) {
-      geocodingData = data;
-      break;
+    return { searchTerm, data };
+  });
+  
+  try {
+    const results = await Promise.all(primaryPromises);
+    for (const { data } of results) {
+      if (data.results?.[0]) {
+        geocodingData = data;
+        break;
+      }
+    }
+  } catch (error) {
+    // 並列検索でエラーが発生した場合は順次実行にフォールバック
+    console.warn('並列検索でエラーが発生しました。順次検索に切り替えます:', error);
+  }
+  
+  // 並列検索で見つからなかった場合、残りの検索語で順次実行
+  if (!geocodingData) {
+    for (const searchTerm of fallbackTerms) {
+      const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchTerm)}&count=1`;
+      const geocodingResponse = await safeFetch(geocodingUrl);
+      const data = (await geocodingResponse.json()) as GeocodingResponse;
+      
+      if (data.results?.[0]) {
+        geocodingData = data;
+        break;
+      }
     }
   }
 
@@ -103,7 +131,7 @@ const getWeather = async (location: string) => {
 
   const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code`;
 
-  const response = await fetch(weatherUrl);
+  const response = await safeFetch(weatherUrl);
   const data = (await response.json()) as WeatherResponse;
 
   return {
@@ -116,37 +144,3 @@ const getWeather = async (location: string) => {
     location: name,
   };
 };
-
-function getWeatherCondition(code: number): string {
-  const conditions: Record<number, string> = {
-    0: 'Clear sky',
-    1: 'Mainly clear',
-    2: 'Partly cloudy',
-    3: 'Overcast',
-    45: 'Foggy',
-    48: 'Depositing rime fog',
-    51: 'Light drizzle',
-    53: 'Moderate drizzle',
-    55: 'Dense drizzle',
-    56: 'Light freezing drizzle',
-    57: 'Dense freezing drizzle',
-    61: 'Slight rain',
-    63: 'Moderate rain',
-    65: 'Heavy rain',
-    66: 'Light freezing rain',
-    67: 'Heavy freezing rain',
-    71: 'Slight snow fall',
-    73: 'Moderate snow fall',
-    75: 'Heavy snow fall',
-    77: 'Snow grains',
-    80: 'Slight rain showers',
-    81: 'Moderate rain showers',
-    82: 'Violent rain showers',
-    85: 'Slight snow showers',
-    86: 'Heavy snow showers',
-    95: 'Thunderstorm',
-    96: 'Thunderstorm with slight hail',
-    99: 'Thunderstorm with heavy hail',
-  };
-  return conditions[code] || 'Unknown';
-}

@@ -9,11 +9,11 @@ export const dayOfWeekTool = createTool({
     dayOfWeek: z.string(),
   }),
   execute: async () => {
-    return await getDayOfWeek();
+    return getDayOfWeek();
   },
 });
 
-const getDayOfWeek = async () => {
+const getDayOfWeek = () => {
   const today = new Date();
   const dayIndex = today.getDay();
   

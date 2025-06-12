@@ -1,5 +1,6 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { safeFetch } from '../utils/weather-utils';
 
 export const webpageTitleTool = createTool({
   id: 'get-webpage-title',
@@ -22,15 +23,11 @@ const getWebpageTitle = async (url: string) => {
     const urlObj = new URL(url);
     
     // HTMLコンテンツを取得
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; WebpageTitleTool/1.0)',
       },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    }, 15000); // Webページ取得のため15秒タイムアウト
     
     const html = await response.text();
     
